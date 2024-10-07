@@ -1,0 +1,38 @@
+# MacOS
+.cache
+.DS_Store
+
+# IDE
+.idea/
+*.sublime-project
+*.sublime-workspace
+.vscode/
+*.code-workspace
+
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.o
+*.d
+
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Ignore any .tfvars files that are generated automatically for each Terraform run. Most
+# .tfvars files are managed as part of configuration and so should be included in
+# version control.
+**/*.tfvars
+
+# tf lock file
+.terraform.lock.hcl
+clean
+temp.vars
+cft.json
+credentials.json
