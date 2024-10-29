@@ -122,6 +122,19 @@ resource "google_storage_bucket" "cloudbuild_bucket" {
 }
 
 #--------------------------------------------------------------------------------------------------
+# Create Storage Bucket for the Backfill Service
+#--------------------------------------------------------------------------------------------------
+resource "google_storage_bucket" "backfill_bucket" {
+  provider      = google-beta
+  name          = "${var.deployment_name}-backfill"
+  location      = var.region
+  force_destroy = true
+  storage_class = "STANDARD"
+
+  uniform_bucket_level_access = true
+}
+
+#--------------------------------------------------------------------------------------------------
 # Execute the Cloud Build
 #--------------------------------------------------------------------------------------------------
 module "cli" {

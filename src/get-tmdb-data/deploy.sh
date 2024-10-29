@@ -16,20 +16,16 @@
 
 source ./config.sh
 
-echo "Deleting the Cloud Run Job if it exists"
-gcloud beta run jobs delete ${SERVICE_NAME} --region=${REGION} --project=${PROJECT_ID} --quiet
-
-echo "Creating Cloud Run Job ${SERVICE_NAME} using ${IMAGE_NAME}, ${NUM_TASKS} tasks"
-gcloud beta run jobs create ${SERVICE_NAME} \
+echo "Deploying ${SERVICE_NAME} using ${IMAGE_NAME}"
+gcloud run deploy ${SERVICE_NAME} \
     --image ${IMAGE_NAME} \
-    --tasks ${NUM_TASKS} \
-    --max-retries 1 \
-    --set-env-vars BUCKET_MOUNT_PATH=/mnt/bucket/core \
-    --set-env-vars EXPORT_DATE="" \
-    --set-secrets=API_KEY=TMDB_API_TOKEN:latest\
-    --add-volume name=bucket,type=cloud-storage,bucket=${BACKFILL_BUCKET} \
-    --add-volume-mount volume=bucket,mount-path=/mnt/bucket \
-    --cpu=2 \
-    --memory=2Gi \
+    --no-allow-unauthenticated \
+    --concurrency=50 \
+    --min-instances=0 \
+    --max-instances=1 \
+    --platform=managed \
+    --timeout=30s \
+    --cpu=1 \
+    --memory=512Mi \
     --region=${REGION} \
     --project=${PROJECT_ID}

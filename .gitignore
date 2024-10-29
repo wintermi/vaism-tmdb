@@ -36,3 +36,6 @@ clean
 temp.vars
 cft.json
 credentials.json
+
+# Project Ignores
+service

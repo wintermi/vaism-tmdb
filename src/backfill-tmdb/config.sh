@@ -23,3 +23,6 @@ export IMAGE_NAME="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVIC
 
 export SERVICE_ACCOUNT="projects/winter-search/serviceAccounts/sa-cloudbuild-vaism-tmdb@winter-search.iam.gserviceaccount.com"
 export CLOUDBUILD_BUCKET="vaism-tmdb-cloudbuild"
+
+export BACKFILL_BUCKET="vaism-tmdb-backfill"
+export NUM_TASKS=1

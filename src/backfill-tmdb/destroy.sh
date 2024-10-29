@@ -16,8 +16,5 @@
 
 source ./config.sh
 
-echo "Configure gcloud to use ${REGION} for Cloud Run"
-gcloud config set run/region ${REGION}
-
-echo "Deleting ${SERVICE_NAME}"
-gcloud run services delete ${SERVICE_NAME} --region=${REGION} --project=${PROJECT_ID} --quiet
+echo "Deleting Cloud Run Job ${SERVICE_NAME}"
+gcloud beta run jobs delete ${SERVICE_NAME} --region=${REGION} --project=${PROJECT_ID} --quiet

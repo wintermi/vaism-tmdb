@@ -16,11 +16,11 @@
 
 source ./config.sh
 
-echo "Executing Cloud Build to build the new container image"
-gcloud builds submit \
-    --tag="${IMAGE_NAME}" \
-    --region="${REGION}" \
-    --project="${PROJECT_ID}" \
-    --service-account="${SERVICE_ACCOUNT}" \
-    --gcs-log-dir="gs://${CLOUDBUILD_BUCKET}/logs" \
-    --gcs-source-staging-dir="gs://${CLOUDBUILD_BUCKET}/source"
+URL="$(gcloud run services describe ${SERVICE_NAME} --platform managed --region ${REGION} --format 'value(status.url)')"
+
+echo "Executing ${SERVICE_NAME} via POST to ${URL}"
+curl -X POST \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+    -d '{"name": "Matthew"}' \
+    "${URL}/api/v1/joshua"

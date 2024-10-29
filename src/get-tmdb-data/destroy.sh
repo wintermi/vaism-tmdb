@@ -16,11 +16,8 @@
 
 source ./config.sh
 
-echo "Executing Cloud Build to build the new container image"
-gcloud builds submit \
-    --tag="${IMAGE_NAME}" \
-    --region="${REGION}" \
-    --project="${PROJECT_ID}" \
-    --service-account="${SERVICE_ACCOUNT}" \
-    --gcs-log-dir="gs://${CLOUDBUILD_BUCKET}/logs" \
-    --gcs-source-staging-dir="gs://${CLOUDBUILD_BUCKET}/source"
+echo "Configure gcloud to use ${REGION} for Cloud Run"
+gcloud config set run/region ${REGION}
+
+echo "Deleting ${SERVICE_NAME}"
+gcloud run services delete ${SERVICE_NAME} --region=${REGION} --project=${PROJECT_ID} --quiet

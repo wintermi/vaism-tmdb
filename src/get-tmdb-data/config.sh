@@ -14,13 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source ./config.sh
+export PROJECT_ID="$(gcloud config get project)"
+export REGION="${REGION:=us-central1}"
 
-echo "Executing Cloud Build to build the new container image"
-gcloud builds submit \
-    --tag="${IMAGE_NAME}" \
-    --region="${REGION}" \
-    --project="${PROJECT_ID}" \
-    --service-account="${SERVICE_ACCOUNT}" \
-    --gcs-log-dir="gs://${CLOUDBUILD_BUCKET}/logs" \
-    --gcs-source-staging-dir="gs://${CLOUDBUILD_BUCKET}/source"
+export SERVICE_NAME="get-tmdb-data"
+export REPOSITORY="vaism-tmdb"
+export IMAGE_NAME="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}"
+
+export SERVICE_ACCOUNT="projects/winter-search/serviceAccounts/sa-cloudbuild-vaism-tmdb@winter-search.iam.gserviceaccount.com"
+export CLOUDBUILD_BUCKET="vaism-tmdb-cloudbuild"
