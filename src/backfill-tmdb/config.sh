@@ -18,11 +18,12 @@ export PROJECT_ID="$(gcloud config get project)"
 export REGION="${REGION:=us-central1}"
 
 export SERVICE_NAME="backfill-tmdb"
-export REPOSITORY="vaism-tmdb"
-export IMAGE_NAME="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}"
+export DEPLOYMENT_NAME="vaism-tmdb"
+export IMAGE_NAME="${REGION}-docker.pkg.dev/${PROJECT_ID}/${DEPLOYMENT_NAME}/${SERVICE_NAME}"
 
-export SERVICE_ACCOUNT="projects/winter-search/serviceAccounts/sa-cloudbuild-vaism-tmdb@winter-search.iam.gserviceaccount.com"
-export CLOUDBUILD_BUCKET="vaism-tmdb-cloudbuild"
+export CLOUDBUILD_SERVICE_ACCOUNT="projects/${PROJECT_ID}/serviceAccounts/sa-cloudbuild-${DEPLOYMENT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+export CLOUDBUILD_BUCKET="${DEPLOYMENT_NAME}-cloudbuild"
 
-export BACKFILL_BUCKET="vaism-tmdb-backfill"
-export NUM_TASKS=1
+export CLOUDRUN_SERVICE_ACCOUNT="sa-cloudrun-${DEPLOYMENT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+
+export BACKFILL_BUCKET="${DEPLOYMENT_NAME}-backfill"

@@ -16,5 +16,7 @@
 
 source ./config.sh
 
-echo "Executing Cloud Run Job ${SERVICE_NAME}"
-gcloud beta run jobs execute ${SERVICE_NAME} --region=${REGION} --project=${PROJECT_ID}
+echo "Executing the Cloud Run Job ${SERVICE_NAME}"
+gcloud beta run jobs execute ${SERVICE_NAME} \
+    --region="${REGION}" \
+    --project="${PROJECT_ID}"

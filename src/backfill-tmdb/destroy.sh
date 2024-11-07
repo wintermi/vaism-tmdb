@@ -16,5 +16,8 @@
 
 source ./config.sh
 
-echo "Deleting Cloud Run Job ${SERVICE_NAME}"
-gcloud beta run jobs delete ${SERVICE_NAME} --region=${REGION} --project=${PROJECT_ID} --quiet
+echo "Deleting the Cloud Run Job ${SERVICE_NAME}"
+gcloud beta run jobs delete ${SERVICE_NAME} \
+    --region="${REGION}" \
+    --project="${PROJECT_ID}" \
+    --quiet
