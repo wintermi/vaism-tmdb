@@ -27,6 +27,11 @@ output "cloudbuild_storage_bucket" {
   description = "Output Cloud Build Storage Bucket ID"
 }
 
+output "backfill_storage_bucket" {
+  value       = google_storage_bucket.backfill_bucket.id
+  description = "Output Backfill Storage Bucket ID"
+}
+
 output "artifact_registry_repository" {
   value       = google_artifact_registry_repository.vaism_tmdb.id
   description = "Output Artifact Registry Repository ID"
