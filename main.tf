@@ -46,39 +46,33 @@ data "google_project" "project" {
 #--------------------------------------------------------------------------------------------------
 # Create Service Accounts
 #--------------------------------------------------------------------------------------------------
-resource "google_service_account" "cloudrun_service_account" {
-  provider     = google
-  project      = data.google_project.project.project_id
-  account_id   = "sa-cloudrun-${var.deployment_name}"
+module "cloudrun_service_account" {
+  source       = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/iam-service-account?ref=v35.0.0&depth=1"
+  project_id   = var.project_id
+  name         = "sa-cloudrun-${var.deployment_name}"
   display_name = "Service Account for Cloud Run"
+
+  # non-authoritative roles granted *to* the service accounts on other resources
+  iam_project_roles = {
+    "${var.project_id}" = [
+      "roles/secretmanager.secretAccessor",
+    ]
+  }
 }
 
-resource "google_service_account" "cloudbuild_service_account" {
-  provider     = google
-  project      = data.google_project.project.project_id
-  account_id   = "sa-cloudbuild-${var.deployment_name}"
+module "cloudbuild_service_account" {
+  source       = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/iam-service-account?ref=v35.0.0&depth=1"
+  project_id   = var.project_id
+  name         = "sa-cloudbuild-${var.deployment_name}"
   display_name = "Service Account for Cloud Build"
-}
 
-#--------------------------------------------------------------------------------------------------
-# Grant IAM Roles to Service Accounts
-#--------------------------------------------------------------------------------------------------
-resource "google_project_iam_member" "cloudrun_service_account_secret_accessor" {
-  project  = data.google_project.project.number
-  role     = "roles/secretmanager.secretAccessor"
-  member   = "serviceAccount:${google_service_account.cloudrun_service_account.email}"
-}
-
-resource "google_project_iam_member" "cloudbuild_service_account_storage_admin" {
-  project  = data.google_project.project.number
-  role     = "roles/storage.admin"
-  member   = "serviceAccount:${google_service_account.cloudbuild_service_account.email}"
-}
-
-resource "google_project_iam_member" "cloudbuild_service_account_artifact_registry_writer" {
-  project  = data.google_project.project.number
-  role     = "roles/artifactregistry.writer"
-  member   = "serviceAccount:${google_service_account.cloudbuild_service_account.email}"
+  # non-authoritative roles granted *to* the service accounts on other resources
+  iam_project_roles = {
+    "${var.project_id}" = [
+      "roles/storage.admin",
+      "roles/artifactregistry.writer",
+    ]
+  }
 }
 
 #--------------------------------------------------------------------------------------------------
@@ -153,21 +147,17 @@ module "build_backfill_tmdb" {
   create_cmd_entrypoint = "gcloud"
   create_cmd_body = join(" ",
     [
-        "builds submit ./src/backfill-tmdb",
-        "--tag '${var.region}-docker.pkg.dev/${data.google_project.project.project_id}/${google_artifact_registry_repository.vaism_tmdb.repository_id}/backfill-tmdb'",
-        "--region '${var.region}'",
-        "--project '${data.google_project.project.project_id}'",
-        "--service-account '${google_service_account.cloudbuild_service_account.id}'",
-        "--gcs-log-dir 'gs://${google_storage_bucket.cloudbuild_bucket.name}/logs'",
-        "--gcs-source-staging-dir 'gs://${google_storage_bucket.cloudbuild_bucket.name}/source'",
+      "builds submit ./src/backfill-tmdb",
+      "--tag '${var.region}-docker.pkg.dev/${data.google_project.project.project_id}/${google_artifact_registry_repository.vaism_tmdb.repository_id}/backfill-tmdb'",
+      "--region '${var.region}'",
+      "--project '${data.google_project.project.project_id}'",
+      "--service-account '${module.cloudbuild_service_account.id}'",
+      "--gcs-log-dir 'gs://${google_storage_bucket.cloudbuild_bucket.name}/logs'",
+      "--gcs-source-staging-dir 'gs://${google_storage_bucket.cloudbuild_bucket.name}/source'",
     ]
   )
 
-  #depends_on = [
-  #  google_storage_bucket.cloudbuild_bucket,
-  #  google_project_iam_member.cloudbuild_service_account_storage_admin,
-  #  google_project_iam_member.cloudbuild_service_account_artifact_registry_writer
-  #]
+  module_depends_on = [module.cloudbuild_service_account]
 }
 
 #--------------------------------------------------------------------------------------------------
@@ -192,24 +182,24 @@ resource "google_cloud_run_v2_job" "backfill_tmdb" {
           }
         }
         env {
-          name = "BUCKET_MOUNT_PATH"
+          name  = "BUCKET_MOUNT_PATH"
           value = "/mnt/bucket/backfill-tmdb"
         }
         env {
-          name = "EXPORT_DATE"
+          name  = "EXPORT_DATE"
           value = ""
         }
         env {
           name = "API_KEY"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.tmdb_api_token_secret.secret_id
+              secret  = google_secret_manager_secret.tmdb_api_token_secret.secret_id
               version = "latest"
             }
           }
         }
         volume_mounts {
-          name = "bucket"
+          name       = "bucket"
           mount_path = "/mnt/bucket"
         }
       }
@@ -219,8 +209,8 @@ resource "google_cloud_run_v2_job" "backfill_tmdb" {
           bucket = google_storage_bucket.backfill_bucket.name
         }
       }
-      service_account = google_service_account.cloudrun_service_account.email
-      max_retries = 1
+      service_account = module.cloudrun_service_account.email
+      max_retries     = 1
     }
   }
 

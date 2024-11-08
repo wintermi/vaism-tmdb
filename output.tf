@@ -13,12 +13,12 @@
 # limitations under the License.
 
 output "cloudrun_service_account" {
-  value       = google_service_account.cloudrun_service_account.id
+  value       = module.cloudrun_service_account.id
   description = "Output Cloud Run Service Account ID"
 }
 
 output "cloudbuild_service_account" {
-  value       = google_service_account.cloudbuild_service_account.id
+  value       = module.cloudbuild_service_account.id
   description = "Output Cloud Build Service Account ID"
 }
 
