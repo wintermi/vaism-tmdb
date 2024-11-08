@@ -21,11 +21,11 @@ provider "google-beta" {
 }
 
 module "project_services" {
-  source  = "terraform-google-modules/project-factory/google//modules/project_services"
-  version = "~> 17.0"
+  source      = "terraform-google-modules/project-factory/google//modules/project_services"
+  version     = "~> 17.0"
+  project_id  = var.project_id
+  enable_apis = var.enable_apis
 
-  project_id                  = var.project_id
-  enable_apis                 = var.enable_apis
   disable_services_on_destroy = false
 
   activate_apis = [
@@ -39,22 +39,18 @@ module "project_services" {
   ]
 }
 
-data "google_project" "project" {
-  project_id = module.project_services.project_id
-}
-
 #--------------------------------------------------------------------------------------------------
 # Service Accounts
 #--------------------------------------------------------------------------------------------------
 module "cloudrun_service_account" {
   source       = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/iam-service-account?ref=v35.0.0&depth=1"
-  project_id   = var.project_id
+  project_id   = module.project_services.project_id
   name         = "sa-cloudrun-${var.deployment_name}"
   display_name = "Service Account for Cloud Run"
 
   # non-authoritative roles granted *to* the service accounts on other resources
   iam_project_roles = {
-    "${var.project_id}" = [
+    "${module.project_services.project_id}" = [
       "roles/secretmanager.secretAccessor",
     ]
   }
@@ -62,13 +58,13 @@ module "cloudrun_service_account" {
 
 module "cloudbuild_service_account" {
   source       = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/iam-service-account?ref=v35.0.0&depth=1"
-  project_id   = var.project_id
+  project_id   = module.project_services.project_id
   name         = "sa-cloudbuild-${var.deployment_name}"
   display_name = "Service Account for Cloud Build"
 
   # non-authoritative roles granted *to* the service accounts on other resources
   iam_project_roles = {
-    "${var.project_id}" = [
+    "${module.project_services.project_id}" = [
       "roles/storage.admin",
       "roles/artifactregistry.writer",
     ]
@@ -80,7 +76,7 @@ module "cloudbuild_service_account" {
 #--------------------------------------------------------------------------------------------------
 module "vaism_tmdb_artifact_registry" {
   source      = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/artifact-registry?ref=v35.0.0&depth=1"
-  project_id  = var.project_id
+  project_id  = module.project_services.project_id
   location    = var.region
   name        = var.vaism_tmdb_repository_id
   description = "VAIS:M TMDB Artifact Registry Repository"
@@ -92,7 +88,7 @@ module "vaism_tmdb_artifact_registry" {
 #--------------------------------------------------------------------------------------------------
 module "vaism_tmdb_secret_manager" {
   source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/secret-manager?ref=v35.0.0&depth=1"
-  project_id = var.project_id
+  project_id = module.project_services.project_id
   secrets = {
     TMDB_API_TOKEN = {}
   }
@@ -108,7 +104,7 @@ module "vaism_tmdb_secret_manager" {
 #--------------------------------------------------------------------------------------------------
 module "cloudbuild_bucket" {
   source        = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/gcs?ref=v35.0.0&depth=1"
-  project_id    = var.project_id
+  project_id    = module.project_services.project_id
   location      = var.region
   prefix        = var.deployment_name
   name          = "cloudbuild"
@@ -121,7 +117,7 @@ module "cloudbuild_bucket" {
 
 module "backfill_bucket" {
   source        = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/gcs?ref=v35.0.0&depth=1"
-  project_id    = var.project_id
+  project_id    = module.project_services.project_id
   location      = var.region
   prefix        = var.deployment_name
   name          = "backfill"
@@ -147,7 +143,7 @@ module "build_backfill_tmdb" {
       "builds submit ./src/backfill-tmdb",
       "--tag '${module.vaism_tmdb_artifact_registry.url}/backfill-tmdb'",
       "--region '${var.region}'",
-      "--project '${data.google_project.project.project_id}'",
+      "--project '${module.project_services.project_id}'",
       "--service-account '${module.cloudbuild_service_account.id}'",
       "--gcs-log-dir '${module.cloudbuild_bucket.url}/logs'",
       "--gcs-source-staging-dir '${module.cloudbuild_bucket.url}/source'",
@@ -162,7 +158,7 @@ module "build_backfill_tmdb" {
 #--------------------------------------------------------------------------------------------------
 resource "google_cloud_run_v2_job" "backfill_tmdb" {
   provider            = google-beta
-  project             = data.google_project.project.project_id
+  project             = module.project_services.project_id
   name                = "backfill-tmdb"
   location            = var.region
   deletion_protection = false
