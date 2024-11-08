@@ -53,12 +53,6 @@ variable "vaism_tmdb_repository_id" {
   default     = "vaism-tmdb"
 }
 
-variable "tmdb_api_token" {
-  type        = string
-  description = "Name of TMDB API Token Secret"
-  default     = "TMDB_API_TOKEN"
-}
-
 variable "tmdb_api_token_value" {
   type        = string
   description = "Value of TMDB API Token Secret"

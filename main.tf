@@ -90,21 +90,17 @@ module "vaism_tmdb_artifact_registry" {
 #--------------------------------------------------------------------------------------------------
 # Secret Manager
 #--------------------------------------------------------------------------------------------------
-resource "google_secret_manager_secret" "tmdb_api_token_secret" {
-  provider  = google
-  project   = data.google_project.project.project_id
-  secret_id = var.tmdb_api_token
-
-  replication {
-    auto {}
+module "vaism_tmdb_secret_manager" {
+  source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/secret-manager?ref=v35.0.0&depth=1"
+  project_id = var.project_id
+  secrets = {
+    TMDB_API_TOKEN = {}
   }
-}
-
-resource "google_secret_manager_secret_version" "tmdb_api_token_secret_version" {
-  provider = google
-  secret   = google_secret_manager_secret.tmdb_api_token_secret.id
-
-  secret_data = var.tmdb_api_token_value
+  versions = {
+    TMDB_API_TOKEN = {
+      v1 = { enabled = true, data = var.tmdb_api_token_value }
+    }
+  }
 }
 
 #--------------------------------------------------------------------------------------------------
@@ -193,7 +189,7 @@ resource "google_cloud_run_v2_job" "backfill_tmdb" {
           name = "API_KEY"
           value_source {
             secret_key_ref {
-              secret  = google_secret_manager_secret.tmdb_api_token_secret.secret_id
+              secret  = "TMDB_API_TOKEN"
               version = "latest"
             }
           }
