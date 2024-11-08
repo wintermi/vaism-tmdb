@@ -104,29 +104,30 @@ module "vaism_tmdb_secret_manager" {
 }
 
 #--------------------------------------------------------------------------------------------------
-# Create Cloud Build Storage Bucket for Logs and Source
+# Cloud Storage Buckets
 #--------------------------------------------------------------------------------------------------
-resource "google_storage_bucket" "cloudbuild_bucket" {
-  provider      = google
-  project       = data.google_project.project.project_id
-  name          = "${var.deployment_name}-cloudbuild"
+module "cloudbuild_bucket" {
+  source        = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/gcs?ref=v35.0.0&depth=1"
+  project_id    = var.project_id
   location      = var.region
+  prefix        = var.deployment_name
+  name          = "cloudbuild"
   force_destroy = true
   storage_class = "STANDARD"
+  versioning    = false
 
   uniform_bucket_level_access = true
 }
 
-#--------------------------------------------------------------------------------------------------
-# Create Storage Bucket for the Backfill Service
-#--------------------------------------------------------------------------------------------------
-resource "google_storage_bucket" "backfill_bucket" {
-  provider      = google
-  project       = data.google_project.project.project_id
-  name          = "${var.deployment_name}-backfill"
+module "backfill_bucket" {
+  source        = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/gcs?ref=v35.0.0&depth=1"
+  project_id    = var.project_id
   location      = var.region
+  prefix        = var.deployment_name
+  name          = "backfill"
   force_destroy = true
   storage_class = "STANDARD"
+  versioning    = false
 
   uniform_bucket_level_access = true
 }
@@ -148,8 +149,8 @@ module "build_backfill_tmdb" {
       "--region '${var.region}'",
       "--project '${data.google_project.project.project_id}'",
       "--service-account '${module.cloudbuild_service_account.id}'",
-      "--gcs-log-dir 'gs://${google_storage_bucket.cloudbuild_bucket.name}/logs'",
-      "--gcs-source-staging-dir 'gs://${google_storage_bucket.cloudbuild_bucket.name}/source'",
+      "--gcs-log-dir '${module.cloudbuild_bucket.url}/logs'",
+      "--gcs-source-staging-dir '${module.cloudbuild_bucket.url}/source'",
     ]
   )
 
@@ -202,7 +203,7 @@ resource "google_cloud_run_v2_job" "backfill_tmdb" {
       volumes {
         name = "bucket"
         gcs {
-          bucket = google_storage_bucket.backfill_bucket.name
+          bucket = module.backfill_bucket.name
         }
       }
       service_account = module.cloudrun_service_account.email

@@ -23,13 +23,13 @@ output "cloudbuild_service_account" {
 }
 
 output "cloudbuild_storage_bucket" {
-  value       = google_storage_bucket.cloudbuild_bucket.id
-  description = "Output Cloud Build Storage Bucket ID"
+  value       = module.cloudbuild_bucket.url
+  description = "Output Cloud Build Storage Bucket URL"
 }
 
 output "backfill_storage_bucket" {
-  value       = google_storage_bucket.backfill_bucket.id
-  description = "Output Backfill Storage Bucket ID"
+  value       = module.backfill_bucket.url
+  description = "Output Backfill Storage Bucket URL"
 }
 
 output "artifact_registry_repository" {
