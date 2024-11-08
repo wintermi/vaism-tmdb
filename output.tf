@@ -33,6 +33,6 @@ output "backfill_storage_bucket" {
 }
 
 output "artifact_registry_repository" {
-  value       = google_artifact_registry_repository.vaism_tmdb.id
-  description = "Output Artifact Registry Repository ID"
+  value       = module.vaism_tmdb_artifact_registry.url
+  description = "Output Artifact Registry Repository URL"
 }

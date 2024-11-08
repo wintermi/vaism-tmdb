@@ -44,7 +44,7 @@ data "google_project" "project" {
 }
 
 #--------------------------------------------------------------------------------------------------
-# Create Service Accounts
+# Service Accounts
 #--------------------------------------------------------------------------------------------------
 module "cloudrun_service_account" {
   source       = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/iam-service-account?ref=v35.0.0&depth=1"
@@ -76,19 +76,19 @@ module "cloudbuild_service_account" {
 }
 
 #--------------------------------------------------------------------------------------------------
-# Create Artifact Registry
+# Artifact Registry
 #--------------------------------------------------------------------------------------------------
-resource "google_artifact_registry_repository" "vaism_tmdb" {
-  provider      = google
-  project       = data.google_project.project.project_id
-  location      = var.region
-  repository_id = var.vaism_tmdb_repository_id
-  description   = "VAIS:M TMDB Artifact Registry Repository"
-  format        = "DOCKER"
+module "vaism_tmdb_artifact_registry" {
+  source      = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/artifact-registry?ref=v35.0.0&depth=1"
+  project_id  = var.project_id
+  location    = var.region
+  name        = var.vaism_tmdb_repository_id
+  description = "VAIS:M TMDB Artifact Registry Repository"
+  format      = { docker = { standard = {} } }
 }
 
 #--------------------------------------------------------------------------------------------------
-# Create Secret Manager Secret
+# Secret Manager
 #--------------------------------------------------------------------------------------------------
 resource "google_secret_manager_secret" "tmdb_api_token_secret" {
   provider  = google
@@ -148,7 +148,7 @@ module "build_backfill_tmdb" {
   create_cmd_body = join(" ",
     [
       "builds submit ./src/backfill-tmdb",
-      "--tag '${var.region}-docker.pkg.dev/${data.google_project.project.project_id}/${google_artifact_registry_repository.vaism_tmdb.repository_id}/backfill-tmdb'",
+      "--tag '${module.vaism_tmdb_artifact_registry.url}/backfill-tmdb'",
       "--region '${var.region}'",
       "--project '${data.google_project.project.project_id}'",
       "--service-account '${module.cloudbuild_service_account.id}'",
@@ -174,7 +174,7 @@ resource "google_cloud_run_v2_job" "backfill_tmdb" {
     task_count = 1
     template {
       containers {
-        image = "${var.region}-docker.pkg.dev/${data.google_project.project.project_id}/${google_artifact_registry_repository.vaism_tmdb.repository_id}/backfill-tmdb"
+        image = "${module.vaism_tmdb_artifact_registry.url}/backfill-tmdb"
         resources {
           limits = {
             cpu    = "2"
