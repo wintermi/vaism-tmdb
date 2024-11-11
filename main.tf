@@ -67,6 +67,7 @@ module "cloudbuild_service_account" {
     "${module.project_services.project_id}" = [
       "roles/storage.admin",
       "roles/artifactregistry.writer",
+      "roles/logging.logWriter",
     ]
   }
 }
@@ -102,12 +103,25 @@ module "vaism_tmdb_secret_manager" {
 #--------------------------------------------------------------------------------------------------
 # Cloud Storage Buckets
 #--------------------------------------------------------------------------------------------------
-module "cloudbuild_bucket" {
+module "cloudbuild_backfill_tmdb_bucket" {
   source        = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/gcs?ref=v35.0.0&depth=1"
   project_id    = module.project_services.project_id
   location      = var.region
   prefix        = var.deployment_name
-  name          = "cloudbuild"
+  name          = "cloudbuild-backfill-tmdb"
+  force_destroy = true
+  storage_class = "STANDARD"
+  versioning    = false
+
+  uniform_bucket_level_access = true
+}
+
+module "cloudbuild_get_tmdb_data_bucket" {
+  source        = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/gcs?ref=v35.0.0&depth=1"
+  project_id    = module.project_services.project_id
+  location      = var.region
+  prefix        = var.deployment_name
+  name          = "cloudbuild-get-tmdb-data"
   force_destroy = true
   storage_class = "STANDARD"
   versioning    = false
@@ -145,8 +159,8 @@ module "build_backfill_tmdb" {
       "--region '${var.region}'",
       "--project '${module.project_services.project_id}'",
       "--service-account '${module.cloudbuild_service_account.id}'",
-      "--gcs-log-dir '${module.cloudbuild_bucket.url}/logs'",
-      "--gcs-source-staging-dir '${module.cloudbuild_bucket.url}/source'",
+      "--gcs-log-dir '${module.cloudbuild_backfill_tmdb_bucket.url}/logs'",
+      "--gcs-source-staging-dir '${module.cloudbuild_backfill_tmdb_bucket.url}/source'",
     ]
   )
 
@@ -209,4 +223,29 @@ module "deploy_backfill_tmdb" {
 
   deletion_protection = false
   depends_on          = [module.build_backfill_tmdb.wait]
+}
+
+#--------------------------------------------------------------------------------------------------
+# Execute Cloud Build - Get
+#--------------------------------------------------------------------------------------------------
+module "build_get_tmdb_data" {
+  source  = "terraform-google-modules/gcloud/google"
+  version = "~> 3.5.0"
+
+  platform = var.gcloud_platform
+
+  create_cmd_entrypoint = "gcloud"
+  create_cmd_body = join(" ",
+    [
+      "builds submit ./src/get-tmdb-data",
+      "--tag '${module.vaism_tmdb_artifact_registry.url}/get-tmdb-data'",
+      "--region '${var.region}'",
+      "--project '${module.project_services.project_id}'",
+      "--service-account '${module.cloudbuild_service_account.id}'",
+      "--gcs-log-dir '${module.cloudbuild_get_tmdb_data_bucket.url}/logs'",
+      "--gcs-source-staging-dir '${module.cloudbuild_get_tmdb_data_bucket.url}/source'",
+    ]
+  )
+
+  module_depends_on = [module.cloudbuild_service_account]
 }

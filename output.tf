@@ -22,9 +22,14 @@ output "cloudbuild_service_account" {
   description = "Output Cloud Build Service Account ID"
 }
 
-output "cloudbuild_storage_bucket" {
-  value       = module.cloudbuild_bucket.url
-  description = "Output Cloud Build Storage Bucket URL"
+output "cloudbuild_backfill_tmdb_storage_bucket" {
+  value       = module.cloudbuild_backfill_tmdb_bucket.url
+  description = "Output Cloud Build Storage Bucket URL for Backfill TMDB"
+}
+
+output "cloudbuild_get_tmdb_data_storage_bucket" {
+  value       = module.cloudbuild_get_tmdb_data_bucket.url
+  description = "Output Cloud Build Storage Bucket URL for Get TMDB Data"
 }
 
 output "backfill_storage_bucket" {

@@ -22,7 +22,7 @@ export DEPLOYMENT_NAME="vaism-tmdb"
 export IMAGE_NAME="${REGION}-docker.pkg.dev/${PROJECT_ID}/${DEPLOYMENT_NAME}/${SERVICE_NAME}"
 
 export CLOUDBUILD_SERVICE_ACCOUNT="projects/${PROJECT_ID}/serviceAccounts/sa-cloudbuild-${DEPLOYMENT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
-export CLOUDBUILD_BUCKET="${DEPLOYMENT_NAME}-cloudbuild"
+export CLOUDBUILD_BUCKET="${DEPLOYMENT_NAME}-cloudbuild-backfill-tmdb"
 
 export CLOUDRUN_SERVICE_ACCOUNT="sa-cloudrun-${DEPLOYMENT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 

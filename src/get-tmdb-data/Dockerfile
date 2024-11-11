@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Copyright 2024, Matthew Winter
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source ./config.sh
+FROM cgr.dev/chainguard/go AS builder
 
-echo "Executing Cloud Build to build the new container image"
-gcloud builds submit \
-    --tag "${IMAGE_NAME}" \
-    --region "${REGION}" \
-    --project "${PROJECT_ID}" \
-    --service-account "${CLOUDBUILD_SERVICE_ACCOUNT}" \
-    --gcs-log-dir "gs://${CLOUDBUILD_BUCKET}/logs" \
-    --gcs-source-staging-dir "gs://${CLOUDBUILD_BUCKET}/source"
+WORKDIR /work
+COPY build/ /work/
+RUN go build -ldflags "-s -w" -o "service" .
+
+FROM cgr.dev/chainguard/glibc-dynamic
+COPY --from=builder /work/service /app/service
+CMD ["/app/service"]
