@@ -6,4 +6,4 @@ toolchain go1.23.3
 
 require github.com/carlmjohnson/requests v0.24.2
 
-require golang.org/x/net v0.30.0 // indirect
+require golang.org/x/net v0.31.0 // indirect
