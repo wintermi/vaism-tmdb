@@ -129,7 +129,7 @@ module "backfill_bucket" {
 }
 
 #--------------------------------------------------------------------------------------------------
-# Execute the Cloud Build - Backfill TMDB
+# Execute Cloud Build - Backfill TMDB History
 #--------------------------------------------------------------------------------------------------
 module "build_backfill_tmdb" {
   source  = "terraform-google-modules/gcloud/google"
@@ -154,58 +154,59 @@ module "build_backfill_tmdb" {
 }
 
 #--------------------------------------------------------------------------------------------------
-# Deploy the Cloud Run Job - Backfill TMDB
+# Deploy Cloud Run Job - Backfill TMDB History
 #--------------------------------------------------------------------------------------------------
-resource "google_cloud_run_v2_job" "backfill_tmdb" {
-  provider            = google-beta
-  project             = module.project_services.project_id
-  name                = "backfill-tmdb"
-  location            = var.region
-  deletion_protection = false
+module "deploy_backfill_tmdb" {
+  #source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/cloud-run-v2?ref=v35.0.0&depth=1"
+  # TODO: Remove this once the module is updated to support the PR submitted to fix the GCS attribute issue
+  source     = "github.com/wintermi/cloud-foundation-fabric//modules/cloud-run-v2?depth=1"
+  project_id = module.project_services.project_id
+  region     = var.region
+  prefix     = var.deployment_name
+  name       = "backfill-tmdb"
+  create_job = true
 
-  template {
-    task_count = 1
-    template {
-      containers {
-        image = "${module.vaism_tmdb_artifact_registry.url}/backfill-tmdb"
-        resources {
-          limits = {
-            cpu    = "2"
-            memory = "2Gi"
-          }
-        }
-        env {
-          name  = "BUCKET_MOUNT_PATH"
-          value = "/mnt/bucket/backfill-tmdb"
-        }
-        env {
-          name  = "EXPORT_DATE"
-          value = ""
-        }
-        env {
-          name = "API_KEY"
-          value_source {
-            secret_key_ref {
-              secret  = "TMDB_API_TOKEN"
-              version = "latest"
-            }
-          }
-        }
-        volume_mounts {
-          name       = "bucket"
-          mount_path = "/mnt/bucket"
+  containers = {
+    backfill-tmdb = {
+      image = "${module.vaism_tmdb_artifact_registry.url}/backfill-tmdb"
+      resources = {
+        limits = {
+          cpu    = "2"
+          memory = "2Gi"
         }
       }
-      volumes {
-        name = "bucket"
-        gcs {
-          bucket = module.backfill_bucket.name
+      env = {
+        BUCKET_MOUNT_PATH = "/mnt/bucket/backfill-tmdb"
+        EXPORT_DATE       = ""
+      }
+      env_from_key = {
+        API_KEY = {
+          secret  = module.vaism_tmdb_secret_manager.secrets["TMDB_API_TOKEN"].name
+          version = "latest"
         }
       }
-      service_account = module.cloudrun_service_account.email
-      max_retries     = 1
+      volume_mounts = {
+        backfill-bucket = "/mnt/bucket"
+      }
     }
   }
+  volumes = {
+    backfill-bucket = {
+      gcs = {
+        bucket       = module.backfill_bucket.name
+        is_read_only = false
+      }
+    }
+  }
+  revision = {
+    job = {
+      max_retries = 1
+      task_count  = 1
+    }
+    timeout = "3600s"
+  }
+  service_account = module.cloudrun_service_account.email
 
-  depends_on = [module.build_backfill_tmdb.wait]
+  deletion_protection = false
+  depends_on          = [module.build_backfill_tmdb.wait]
 }
