@@ -180,7 +180,7 @@ module "tmdb_bigquery_dataset" {
   tables = {
     tmdb_data = {
       friendly_name       = "TMDB Data"
-      schema              = file("./src/bigquery/tmdb-data-schema.json")
+      schema              = file("./src/bigquery-schema/tmdb-data-schema.json")
       deletion_protection = false
       options = {
         clustering = ["type", "response_type"]
