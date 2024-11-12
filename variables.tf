@@ -23,12 +23,6 @@ variable "region" {
   default     = "us-central1"
 }
 
-variable "zone" {
-  type        = string
-  description = "The Google Cloud Compute Zone to deploy to"
-  default     = "us-central1-a"
-}
-
 variable "deployment_name" {
   type        = string
   description = "The name of this particular deployment, will get added as a prefix to most resources."
