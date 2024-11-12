@@ -25,3 +25,7 @@ export CLOUDBUILD_SERVICE_ACCOUNT="projects/${PROJECT_ID}/serviceAccounts/sa-clo
 export CLOUDBUILD_BUCKET="${DEPLOYMENT_NAME}-cloudbuild-get-tmdb-data"
 
 export CLOUDRUN_SERVICE_ACCOUNT="sa-cloudrun-${DEPLOYMENT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+
+export PUBSUB_TOPIC_ID="tmdb-data"
+export PUBSUB_TOPIC_SCHEMA="$(cat tmdb-topic-schema.json | base64)"
+export API_ENDPOINT_LIST="$(cat tmdb-api-endpoint-list.json | base64)"

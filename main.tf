@@ -171,12 +171,10 @@ module "build_backfill_tmdb" {
 # Deploy Cloud Run Job - Backfill TMDB History
 #--------------------------------------------------------------------------------------------------
 module "deploy_backfill_tmdb" {
-  #source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/cloud-run-v2?ref=v35.0.0&depth=1"
-  # TODO: Remove this once the module is updated to support the PR submitted to fix the GCS attribute issue
-  source     = "github.com/wintermi/cloud-foundation-fabric//modules/cloud-run-v2?depth=1"
+  # TODO: Update to use the v36.0.0 release tag assuming it contains the PR submitted to fix the GCS attribute issue
+  source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/cloud-run-v2?depth=1"
   project_id = module.project_services.project_id
   region     = var.region
-  prefix     = var.deployment_name
   name       = "backfill-tmdb"
   create_job = true
 
@@ -219,9 +217,8 @@ module "deploy_backfill_tmdb" {
     }
     timeout = "3600s"
   }
-  service_account = module.cloudrun_service_account.email
-
   deletion_protection = false
+  service_account     = module.cloudrun_service_account.email
   depends_on          = [module.build_backfill_tmdb.wait]
 }
 
@@ -248,4 +245,54 @@ module "build_get_tmdb_data" {
   )
 
   module_depends_on = [module.cloudbuild_service_account]
+}
+
+#--------------------------------------------------------------------------------------------------
+# Deploy Cloud Run Job - Get TMDB Data
+#--------------------------------------------------------------------------------------------------
+module "deploy_get_tmdb_data" {
+  # TODO: Update to use the v36.0.0 release tag assuming it contains the PR submitted to fix the GCS attribute issue
+  source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/cloud-run-v2?depth=1"
+  project_id = module.project_services.project_id
+  region     = var.region
+  name       = "get-tmdb-data"
+
+  containers = {
+    get-tmdb-data = {
+      image = "${module.vaism_tmdb_artifact_registry.url}/get-tmdb-data"
+      ports = {
+        HTTPS = {
+          container_port = 8080
+        }
+      }
+      resources = {
+        limits = {
+          cpu    = "2"
+          memory = "1Gi"
+        }
+        startup_cpu_boost = true
+      }
+      env = {
+        PUBSUB_PROJECT_ID   = module.project_services.project_id
+        PUBSUB_TOPIC_ID     = var.tmdb_data_topic
+        PUBSUB_TOPIC_SCHEMA = var.tmdb_data_schema
+        API_ENDPOINT_LIST   = var.api_endpoint_list
+      }
+      env_from_key = {
+        API_KEY = {
+          secret  = module.vaism_tmdb_secret_manager.secrets["TMDB_API_TOKEN"].name
+          version = "latest"
+        }
+      }
+    }
+  }
+  revision = {
+    max_concurrency = 60
+    min_instances   = 0
+    max_instances   = 4
+    timeout         = "50s"
+  }
+  deletion_protection = false
+  service_account     = module.cloudrun_service_account.email
+  depends_on          = [module.build_get_tmdb_data.wait]
 }

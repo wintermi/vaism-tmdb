@@ -64,3 +64,21 @@ variable "gcloud_platform" {
   description = "Platform 'gcloud' will run on. Defaults to linux. Valid values: linux, darwin"
   default     = "linux"
 }
+
+variable "tmdb_data_topic" {
+  type        = string
+  description = "The name of the Pub/Sub topic that 'get-tmdb-data' will publish to"
+  default     = "tmdb-data"
+}
+
+variable "tmdb_data_schema" {
+  type        = string
+  description = "The Pub/Sub topic schema that 'get-tmdb-data' will publish to, encoded in BASE64"
+  default     = ""
+}
+
+variable "api_endpoint_list" {
+  type        = string
+  description = "The list of TMDB API endpoints that 'get-tmdb-data' will call, encoded in BASE64"
+  default     = ""
+}

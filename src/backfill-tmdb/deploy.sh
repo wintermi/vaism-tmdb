@@ -22,7 +22,7 @@ gcloud beta run jobs delete ${SERVICE_NAME} \
     --project="${PROJECT_ID}" \
     --quiet
 
-echo "Creating Cloud Run Job ${SERVICE_NAME} using ${IMAGE_NAME}, ${NUM_TASKS} tasks"
+echo "Deploying Cloud Run Job ${SERVICE_NAME} using ${IMAGE_NAME}"
 gcloud beta run jobs create ${SERVICE_NAME} \
     --image "${IMAGE_NAME}" \
     --region "${REGION}" \

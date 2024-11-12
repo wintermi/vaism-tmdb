@@ -1,0 +1,27 @@
+{
+  "collection": {
+    "detail": "https://api.themoviedb.org/3/collection/{id}"
+  },
+  "keyword": {
+    "detail": "https://api.themoviedb.org/3/keyword/{id}"
+  },
+  "movie": {
+    "detail": "https://api.themoviedb.org/3/movie/{id}",
+    "credits": "https://api.themoviedb.org/3/movie/{id}/credits",
+    "keywords": "https://api.themoviedb.org/3/movie/{id}/keywords"
+  },
+  "person": {
+    "detail": "https://api.themoviedb.org/3/person/{id}"
+  },
+  "production_company": {
+    "detail": "https://api.themoviedb.org/3/company/{id}"
+  },
+  "tv_network": {
+    "detail": "https://api.themoviedb.org/3/network/{id}"
+  },
+  "tv_series": {
+    "detail": "https://api.themoviedb.org/3/tv/{id}",
+    "credits": "https://api.themoviedb.org/3/tv/{id}/credits",
+    "keywords": "https://api.themoviedb.org/3/tv/{id}/keywords"
+  }
+}
