@@ -52,6 +52,7 @@ module "cloudrun_service_account" {
   iam_project_roles = {
     "${module.project_services.project_id}" = [
       "roles/secretmanager.secretAccessor",
+      "roles/storage.objectUser",
     ]
   }
 }
