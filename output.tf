@@ -12,14 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+output "cloudbuild_service_account" {
+  value       = module.cloudbuild_service_account.id
+  description = "Output Cloud Build Service Account ID"
+}
+
 output "cloudrun_service_account" {
   value       = module.cloudrun_service_account.id
   description = "Output Cloud Run Service Account ID"
 }
 
-output "cloudbuild_service_account" {
-  value       = module.cloudbuild_service_account.id
-  description = "Output Cloud Build Service Account ID"
+output "pubsub_service_account" {
+  value       = module.pubsub_service_account.id
+  description = "Output Pub/Sub Service Account ID"
 }
 
 output "cloudbuild_backfill_tmdb_storage_bucket_url" {

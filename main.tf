@@ -32,6 +32,8 @@ module "project_services" {
     "serviceusage.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "artifactregistry.googleapis.com",
+    "bigquery.googleapis.com",
+    "bigquerystorage.googleapis.com",
     "cloudbuild.googleapis.com",
     "pubsub.googleapis.com",
     "run.googleapis.com",
@@ -43,6 +45,22 @@ module "project_services" {
 #--------------------------------------------------------------------------------------------------
 # Service Accounts
 #--------------------------------------------------------------------------------------------------
+module "cloudbuild_service_account" {
+  source       = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/iam-service-account?ref=v35.0.0&depth=1"
+  project_id   = module.project_services.project_id
+  name         = "sa-cloudbuild-${var.deployment_name}"
+  display_name = "Service Account for Cloud Build"
+
+  # non-authoritative roles granted *to* the service accounts on other resources
+  iam_project_roles = {
+    "${module.project_services.project_id}" = [
+      "roles/storage.admin",
+      "roles/artifactregistry.writer",
+      "roles/logging.logWriter",
+    ]
+  }
+}
+
 module "cloudrun_service_account" {
   source       = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/iam-service-account?ref=v35.0.0&depth=1"
   project_id   = module.project_services.project_id
@@ -59,18 +77,17 @@ module "cloudrun_service_account" {
   }
 }
 
-module "cloudbuild_service_account" {
+module "pubsub_service_account" {
   source       = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/iam-service-account?ref=v35.0.0&depth=1"
   project_id   = module.project_services.project_id
-  name         = "sa-cloudbuild-${var.deployment_name}"
-  display_name = "Service Account for Cloud Build"
+  name         = "sa-pubsub-${var.deployment_name}"
+  display_name = "Service Account for Pub/Sub"
 
   # non-authoritative roles granted *to* the service accounts on other resources
   iam_project_roles = {
     "${module.project_services.project_id}" = [
-      "roles/storage.admin",
-      "roles/artifactregistry.writer",
-      "roles/logging.logWriter",
+      "roles/bigquery.dataEditor",
+      "roles/pubsub.editor",
     ]
   }
 }
@@ -146,18 +163,59 @@ module "backfill_bucket" {
 }
 
 #--------------------------------------------------------------------------------------------------
+# BigQuery Dataset
+#--------------------------------------------------------------------------------------------------
+module "tmdb_bigquery_dataset" {
+  source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/bigquery-dataset?ref=v35.0.0&depth=1"
+  project_id = module.project_services.project_id
+  location   = var.region
+  id         = "tmdb"
+  options = {
+    default_table_expiration_ms     = null
+    default_partition_expiration_ms = null
+    delete_contents_on_destroy      = false
+    max_time_travel_hours           = 168 # (7 days)
+    storage_billing_model           = "PHYSICAL"
+  }
+  tables = {
+    tmdb_data = {
+      friendly_name       = "TMDB Data"
+      schema              = file("./src/bigquery/tmdb-data-schema.json")
+      deletion_protection = false
+      options = {
+        clustering = ["type", "response_type"]
+      }
+    }
+  }
+}
+
+#--------------------------------------------------------------------------------------------------
 # Pub/Sub Topics and Schemas
 #--------------------------------------------------------------------------------------------------
 module "tmdb_data_topic" {
+  # TODO: Requires the Fabric FAST module to be updated to allow the service account email to be set for the BigQuery subscription
   source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/pubsub?ref=v35.0.0&depth=1"
   project_id = module.project_services.project_id
   name       = var.tmdb_data_topic
+
+  message_retention_duration = "604800s" # (7 days)
   schema = {
     msg_encoding = "JSON"
     schema_type  = "AVRO"
     definition   = file("./src/get-tmdb-data/build/tmdb-data-topic-schema.json")
   }
-  message_retention_duration = "604800s" # 7 days
+  subscriptions = {
+    tmdb-data = {
+      bigquery = {
+        table                 = "${module.tmdb_bigquery_dataset.tables["tmdb_data"].project}:${module.tmdb_bigquery_dataset.tables["tmdb_data"].dataset_id}.${module.tmdb_bigquery_dataset.tables["tmdb_data"].table_id}"
+        use_table_schema      = true
+        write_metadata        = false
+        service_account_email = module.pubsub_service_account.email
+      }
+    }
+  }
+
+  depends_on = [module.tmdb_bigquery_dataset, module.pubsub_service_account]
 }
 
 #--------------------------------------------------------------------------------------------------
