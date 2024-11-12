@@ -114,59 +114,6 @@ type ExportResponse struct {
 
 //---------------------------------------------------------------------------------------
 
-type LogEntry struct {
-	Message   string `json:"message"`
-	Severity  string `json:"severity,omitempty"`
-	Trace     string `json:"logging.googleapis.com/trace,omitempty"`
-	Component string `json:"component,omitempty"`
-}
-
-type SeverityType int32
-
-const (
-	DEFAULT   SeverityType = 0
-	DEBUG     SeverityType = 100
-	INFO      SeverityType = 200
-	NOTICE    SeverityType = 300
-	WARNING   SeverityType = 400
-	ERROR     SeverityType = 500
-	CRITICAL  SeverityType = 600
-	ALERT     SeverityType = 700
-	EMERGENCY SeverityType = 800
-)
-
-var SeverityMessage = map[SeverityType]string{
-	DEFAULT:   "DEFAULT",
-	DEBUG:     "DEBUG",
-	INFO:      "INFO",
-	NOTICE:    "NOTICE",
-	WARNING:   "WARNING",
-	ERROR:     "ERROR",
-	CRITICAL:  "CRITICAL",
-	ALERT:     "ALERT",
-	EMERGENCY: "EMERGENCY",
-}
-
-//---------------------------------------------------------------------------------------
-
-// Print Log Entry in the JSON format expected by Cloud Logging.
-func PrintLogEntry(severity SeverityType, message string) {
-
-	entry, err := json.Marshal(LogEntry{
-		Severity:  SeverityMessage[severity],
-		Message:   message,
-		Component: "export-api-data",
-	})
-	if err != nil {
-		log.Printf("Failed to Execute JSON Marshal: %v", err)
-		return
-	}
-	log.Println(string(entry))
-
-}
-
-//---------------------------------------------------------------------------------------
-
 // Get a New Service Configuration from Environment Variables
 func NewServiceConfig() ServiceConfig {
 

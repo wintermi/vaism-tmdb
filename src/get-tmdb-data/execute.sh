@@ -22,5 +22,5 @@ echo "Executing ${SERVICE_NAME} via POST to ${URL}"
 curl -X POST \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
-    -d '{"name": "Matthew"}' \
-    "${URL}/api/v1/joshua"
+    -d '{"deliveryAttempt": 5,"message": {"data": "eyJ0eXBlIjoibW92aWUiLCJleHBvcnRfZGF0ZSI6IjIwMjQtMDctMDEiLCJpZCI6Nzg2ODkyfQ==","message_id": "2070443601311540","publish_time": "2021-02-26T19:13:55.749Z"},"subscription": "projects/myproject/subscriptions/mysubscription"}' \
+    "${URL}/api/v1/export"
