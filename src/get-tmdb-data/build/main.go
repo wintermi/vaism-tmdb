@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -35,14 +36,19 @@ import (
 
 // Cloud Run Service Configuration
 type ServiceConfig struct {
-	Port              int
-	TimeoutSeconds    time.Duration
-	APIKey            string
-	APIEndpointList   map[string]map[string]string
-	PubSubProjectID   string
-	PubSubTopicID     string
-	PubSubTopicSchema string
+	Port            int
+	TimeoutSeconds  time.Duration
+	APIKey          string
+	APIEndpointList map[string]map[string]string
+	PubSubProjectID string
+	PubSubTopicID   string
 }
+
+//go:embed tmdb-data-topic-schema.json
+var TMDB_DATA_TOPIC_SCHEMA string
+
+//go:embed tmdb-api-endpoint-list.json
+var TMDB_API_ENDPOINT_LIST []byte
 
 //---------------------------------------------------------------------------------------
 
@@ -129,17 +135,9 @@ func NewServiceConfig() ServiceConfig {
 		timeout = 10
 	}
 
-	// Attempt to Base64 Decode the API Endpoint List Environment Variable
-	rawList, err := base64.StdEncoding.DecodeString(os.Getenv("API_ENDPOINT_LIST"))
-	if err != nil {
-		msg := fmt.Sprintf("Failed to Decode 'API_ENDPOINT_LIST' Base64 String: %v", err)
-		PrintLogEntry(ERROR, msg)
-		os.Exit(int(ERROR))
-	}
-
 	// Attempt to Bind the API Endpoint List JSON
 	var apiEndpointList map[string]map[string]string
-	err = json.Unmarshal(rawList, &apiEndpointList)
+	err = json.Unmarshal(TMDB_API_ENDPOINT_LIST, &apiEndpointList)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to Bind 'API_ENDPOINT_LIST' JSON: %v", err)
 		PrintLogEntry(ERROR, msg)
@@ -147,13 +145,12 @@ func NewServiceConfig() ServiceConfig {
 	}
 
 	return ServiceConfig{
-		Port:              port,
-		TimeoutSeconds:    time.Duration(timeout) * time.Second,
-		APIKey:            os.Getenv("API_KEY"),
-		APIEndpointList:   apiEndpointList,
-		PubSubProjectID:   os.Getenv("PUBSUB_PROJECT_ID"),
-		PubSubTopicID:     os.Getenv("PUBSUB_TOPIC_ID"),
-		PubSubTopicSchema: os.Getenv("PUBSUB_TOPIC_SCHEMA"),
+		Port:            port,
+		TimeoutSeconds:  time.Duration(timeout) * time.Second,
+		APIKey:          os.Getenv("API_KEY"),
+		APIEndpointList: apiEndpointList,
+		PubSubProjectID: os.Getenv("PUBSUB_PROJECT_ID"),
+		PubSubTopicID:   os.Getenv("PUBSUB_TOPIC_ID"),
 	}
 
 }
@@ -222,17 +219,8 @@ func (config *ServiceConfig) v1Export(c *gin.Context) {
 	defer psClient.Close()
 	psTopic := psClient.Topic(config.PubSubTopicID)
 
-	// Decode the Topic Schema which is passed through as Base64
-	rawSchema, err := base64.StdEncoding.DecodeString(config.PubSubTopicSchema)
-	if err != nil {
-		msg := fmt.Sprintf("Failed to Decode Topic Schema Base64 String: %v", err)
-		PrintLogEntry(DEBUG, msg)
-		AbortWithError(c, http.StatusBadRequest, msg)
-		return
-	}
-
 	// Setup the AVRO Codec for the creation of the Pub/Sub Messages
-	codec, err := goavro.NewCodec(string(rawSchema))
+	codec, err := goavro.NewCodec(TMDB_DATA_TOPIC_SCHEMA)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to Create AVRO Codec: %v", err)
 		PrintLogEntry(DEBUG, msg)

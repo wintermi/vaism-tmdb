@@ -22,22 +22,27 @@ output "cloudbuild_service_account" {
   description = "Output Cloud Build Service Account ID"
 }
 
-output "cloudbuild_backfill_tmdb_storage_bucket" {
+output "cloudbuild_backfill_tmdb_storage_bucket_url" {
   value       = module.cloudbuild_backfill_tmdb_bucket.url
   description = "Output Cloud Build Storage Bucket URL for Backfill TMDB"
 }
 
-output "cloudbuild_get_tmdb_data_storage_bucket" {
+output "cloudbuild_get_tmdb_data_storage_bucket_url" {
   value       = module.cloudbuild_get_tmdb_data_bucket.url
   description = "Output Cloud Build Storage Bucket URL for Get TMDB Data"
 }
 
-output "backfill_storage_bucket" {
+output "backfill_storage_bucket_url" {
   value       = module.backfill_bucket.url
   description = "Output Backfill Storage Bucket URL"
 }
 
-output "artifact_registry_repository" {
+output "vaism_tmdb_artifact_registry_url" {
   value       = module.vaism_tmdb_artifact_registry.url
   description = "Output Artifact Registry Repository URL"
+}
+
+output "tmdb_data_topic_id" {
+  value       = module.tmdb_data_topic.id
+  description = "Output TMDB Data Topic ID"
 }

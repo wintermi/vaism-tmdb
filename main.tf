@@ -33,6 +33,7 @@ module "project_services" {
     "cloudresourcemanager.googleapis.com",
     "artifactregistry.googleapis.com",
     "cloudbuild.googleapis.com",
+    "pubsub.googleapis.com",
     "run.googleapis.com",
     "secretmanager.googleapis.com",
     "storage.googleapis.com",
@@ -53,6 +54,7 @@ module "cloudrun_service_account" {
     "${module.project_services.project_id}" = [
       "roles/secretmanager.secretAccessor",
       "roles/storage.objectUser",
+      "roles/pubsub.publisher",
     ]
   }
 }
@@ -144,7 +146,22 @@ module "backfill_bucket" {
 }
 
 #--------------------------------------------------------------------------------------------------
-# Execute Cloud Build - Backfill TMDB History
+# Pub/Sub Topics and Schemas
+#--------------------------------------------------------------------------------------------------
+module "tmdb_data_topic" {
+  source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/pubsub?ref=v35.0.0&depth=1"
+  project_id = module.project_services.project_id
+  name       = var.tmdb_data_topic
+  schema = {
+    msg_encoding = "JSON"
+    schema_type  = "AVRO"
+    definition   = file("./src/get-tmdb-data/build/tmdb-data-topic-schema.json")
+  }
+  message_retention_duration = "604800s" # 7 days
+}
+
+#--------------------------------------------------------------------------------------------------
+# Cloud Build - Backfill TMDB History
 #--------------------------------------------------------------------------------------------------
 module "build_backfill_tmdb" {
   source  = "terraform-google-modules/gcloud/google"
@@ -162,6 +179,31 @@ module "build_backfill_tmdb" {
       "--service-account '${module.cloudbuild_service_account.id}'",
       "--gcs-log-dir '${module.cloudbuild_backfill_tmdb_bucket.url}/logs'",
       "--gcs-source-staging-dir '${module.cloudbuild_backfill_tmdb_bucket.url}/source'",
+    ]
+  )
+
+  module_depends_on = [module.cloudbuild_service_account]
+}
+
+#--------------------------------------------------------------------------------------------------
+# Cloud Build - Get TMDB Data
+#--------------------------------------------------------------------------------------------------
+module "build_get_tmdb_data" {
+  source  = "terraform-google-modules/gcloud/google"
+  version = "~> 3.5.0"
+
+  platform = var.gcloud_platform
+
+  create_cmd_entrypoint = "gcloud"
+  create_cmd_body = join(" ",
+    [
+      "builds submit ./src/get-tmdb-data",
+      "--tag '${module.vaism_tmdb_artifact_registry.url}/get-tmdb-data'",
+      "--region '${var.region}'",
+      "--project '${module.project_services.project_id}'",
+      "--service-account '${module.cloudbuild_service_account.id}'",
+      "--gcs-log-dir '${module.cloudbuild_get_tmdb_data_bucket.url}/logs'",
+      "--gcs-source-staging-dir '${module.cloudbuild_get_tmdb_data_bucket.url}/source'",
     ]
   )
 
@@ -220,36 +262,12 @@ module "deploy_backfill_tmdb" {
   }
   deletion_protection = false
   service_account     = module.cloudrun_service_account.email
-  depends_on          = [module.build_backfill_tmdb.wait]
+
+  depends_on = [module.build_backfill_tmdb.wait, module.cloudrun_service_account, module.vaism_tmdb_secret_manager, module.backfill_bucket]
 }
 
 #--------------------------------------------------------------------------------------------------
-# Execute Cloud Build - Get
-#--------------------------------------------------------------------------------------------------
-module "build_get_tmdb_data" {
-  source  = "terraform-google-modules/gcloud/google"
-  version = "~> 3.5.0"
-
-  platform = var.gcloud_platform
-
-  create_cmd_entrypoint = "gcloud"
-  create_cmd_body = join(" ",
-    [
-      "builds submit ./src/get-tmdb-data",
-      "--tag '${module.vaism_tmdb_artifact_registry.url}/get-tmdb-data'",
-      "--region '${var.region}'",
-      "--project '${module.project_services.project_id}'",
-      "--service-account '${module.cloudbuild_service_account.id}'",
-      "--gcs-log-dir '${module.cloudbuild_get_tmdb_data_bucket.url}/logs'",
-      "--gcs-source-staging-dir '${module.cloudbuild_get_tmdb_data_bucket.url}/source'",
-    ]
-  )
-
-  module_depends_on = [module.cloudbuild_service_account]
-}
-
-#--------------------------------------------------------------------------------------------------
-# Deploy Cloud Run Job - Get TMDB Data
+# Deploy Cloud Run Service - Get TMDB Data
 #--------------------------------------------------------------------------------------------------
 module "deploy_get_tmdb_data" {
   # TODO: Update to use the v36.0.0 release tag assuming it contains the PR submitted to fix the GCS attribute issue
@@ -274,10 +292,8 @@ module "deploy_get_tmdb_data" {
         startup_cpu_boost = true
       }
       env = {
-        PUBSUB_PROJECT_ID   = module.project_services.project_id
-        PUBSUB_TOPIC_ID     = var.tmdb_data_topic
-        PUBSUB_TOPIC_SCHEMA = var.tmdb_data_schema
-        API_ENDPOINT_LIST   = var.api_endpoint_list
+        PUBSUB_PROJECT_ID = module.project_services.project_id
+        PUBSUB_TOPIC_ID   = var.tmdb_data_topic
       }
       env_from_key = {
         API_KEY = {
@@ -295,5 +311,6 @@ module "deploy_get_tmdb_data" {
   }
   deletion_protection = false
   service_account     = module.cloudrun_service_account.email
-  depends_on          = [module.build_get_tmdb_data.wait]
+
+  depends_on = [module.build_get_tmdb_data.wait, module.cloudrun_service_account, module.vaism_tmdb_secret_manager, module.tmdb_data_topic]
 }

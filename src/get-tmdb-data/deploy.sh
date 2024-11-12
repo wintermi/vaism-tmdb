@@ -30,8 +30,6 @@ gcloud beta run deploy ${SERVICE_NAME} \
     --timeout=50s \
     --set-env-vars PUBSUB_PROJECT_ID="${PROJECT_ID}" \
     --set-env-vars PUBSUB_TOPIC_ID="${PUBSUB_TOPIC_ID}" \
-    --set-env-vars PUBSUB_TOPIC_SCHEMA="${PUBSUB_TOPIC_SCHEMA}" \
-    --set-env-vars API_ENDPOINT_LIST="${API_ENDPOINT_LIST}" \
     --set-secrets=API_KEY=TMDB_API_TOKEN:latest \
     --cpu=2 \
     --memory=1Gi
