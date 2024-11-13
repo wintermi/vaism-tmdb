@@ -27,3 +27,4 @@ export CLOUDBUILD_BUCKET="${DEPLOYMENT_NAME}-cloudbuild-backfill-tmdb"
 export CLOUDRUN_SERVICE_ACCOUNT="sa-cloudrun-${DEPLOYMENT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 
 export BACKFILL_BUCKET="${DEPLOYMENT_NAME}-backfill"
+export PUBSUB_TOPIC_ID="tmdb-trigger"

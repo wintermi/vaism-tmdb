@@ -59,13 +59,13 @@ variable "gcloud_platform" {
   default     = "linux"
 }
 
-variable "tmdb_trigger_topic" {
+variable "tmdb_trigger_topic_name" {
   type        = string
   description = "The name of the Pub/Sub topic that 'get-tmdb-data' will publish to"
   default     = "tmdb-trigger"
 }
 
-variable "tmdb_data_topic" {
+variable "tmdb_data_topic_name" {
   type        = string
   description = "The name of the Pub/Sub topic that 'get-tmdb-data' will publish to"
   default     = "tmdb-data"

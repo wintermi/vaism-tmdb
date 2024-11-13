@@ -183,7 +183,7 @@ module "tmdb_bigquery_dataset" {
       schema              = file("./src/bigquery-schema/tmdb_trigger.json")
       deletion_protection = false
       options = {
-        clustering = ["type"]
+        clustering = ["type", "export_date"]
       }
     },
     tmdb_data = {
@@ -191,7 +191,7 @@ module "tmdb_bigquery_dataset" {
       schema              = file("./src/bigquery-schema/tmdb_data.json")
       deletion_protection = false
       options = {
-        clustering = ["type", "response_type"]
+        clustering = ["type", "response_type", "export_date"]
       }
     }
   }
@@ -204,7 +204,7 @@ module "tmdb_trigger_pubsub_topic" {
   # TODO: Requires the Fabric FAST module to be updated to allow the service account email to be set for the BigQuery subscription
   source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/pubsub?ref=v35.0.0&depth=1"
   project_id = module.project_services.project_id
-  name       = var.tmdb_trigger_topic
+  name       = var.tmdb_trigger_topic_name
 
   message_retention_duration = "604800s" # (7 days)
   schema = {
@@ -230,7 +230,7 @@ module "tmdb_data_pubsub_topic" {
   # TODO: Requires the Fabric FAST module to be updated to allow the service account email to be set for the BigQuery subscription
   source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/pubsub?ref=v35.0.0&depth=1"
   project_id = module.project_services.project_id
-  name       = var.tmdb_data_topic
+  name       = var.tmdb_data_topic_name
 
   message_retention_duration = "604800s" # (7 days)
   schema = {
@@ -325,6 +325,8 @@ module "deploy_backfill_tmdb" {
       env = {
         BUCKET_MOUNT_PATH = "/mnt/bucket/backfill-tmdb"
         EXPORT_DATE       = ""
+        PUBSUB_PROJECT_ID = module.project_services.project_id
+        PUBSUB_TOPIC_ID   = var.tmdb_trigger_topic_name
       }
       env_from_key = {
         API_KEY = {
@@ -385,7 +387,7 @@ module "deploy_get_tmdb_data" {
       }
       env = {
         PUBSUB_PROJECT_ID = module.project_services.project_id
-        PUBSUB_TOPIC_ID   = var.tmdb_data_topic
+        PUBSUB_TOPIC_ID   = var.tmdb_data_topic_name
       }
       env_from_key = {
         API_KEY = {

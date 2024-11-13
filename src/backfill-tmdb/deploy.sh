@@ -32,6 +32,8 @@ gcloud beta run jobs create ${SERVICE_NAME} \
     --max-retries 1 \
     --set-env-vars BUCKET_MOUNT_PATH=/mnt/bucket/${SERVICE_NAME} \
     --set-env-vars EXPORT_DATE="" \
+    --set-env-vars PUBSUB_PROJECT_ID="${PROJECT_ID}" \
+    --set-env-vars PUBSUB_TOPIC_ID="${PUBSUB_TOPIC_ID}" \
     --set-secrets API_KEY=TMDB_API_TOKEN:latest \
     --add-volume name=bucket,type=cloud-storage,bucket=${BACKFILL_BUCKET} \
     --add-volume-mount volume=bucket,mount-path=/mnt/bucket \

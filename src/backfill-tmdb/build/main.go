@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	_ "embed"
 	"fmt"
 	"io"
 	"log"
@@ -34,10 +35,15 @@ type JobConfig struct {
 	AttemptNum      string
 	BucketMountPath string
 	ExportDate      time.Time
+	PubSubProjectID string
+	PubSubTopicID   string
 	APIKey          string
 	OutputPath      string
 	DailyExports    []string
 }
+
+//go:embed tmdb-trigger-topic-schema.json
+var TMDB_TRIGGER_TOPIC_SCHEMA string
 
 //---------------------------------------------------------------------------------------
 
@@ -94,6 +100,8 @@ func NewJobConfig() JobConfig {
 		AttemptNum:      os.Getenv("CLOUD_RUN_TASK_ATTEMPT"),
 		BucketMountPath: os.Getenv("BUCKET_MOUNT_PATH"),
 		ExportDate:      getExportDate(os.Getenv("EXPORT_DATE")),
+		PubSubProjectID: os.Getenv("PUBSUB_PROJECT_ID"),
+		PubSubTopicID:   os.Getenv("PUBSUB_TOPIC_ID"),
 		APIKey:          os.Getenv("API_KEY"),
 		OutputPath:      "",
 		DailyExports: []string{
