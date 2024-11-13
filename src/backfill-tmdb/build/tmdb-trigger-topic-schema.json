@@ -1,0 +1,9 @@
+{
+  "type": "record",
+  "name": "Avro",
+  "fields": [
+    { "name": "id", "type": "int", "default": -1 },
+    { "name": "type", "type": "string", "default": "" },
+    { "name": "export_date", "type": "string", "default": "" }
+  ]
+}

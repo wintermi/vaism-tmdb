@@ -1,0 +1,17 @@
+[
+  {
+    "name": "id",
+    "type": "INTEGER",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "type",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "export_date",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  }
+]

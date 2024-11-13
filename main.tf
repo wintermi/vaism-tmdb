@@ -178,9 +178,17 @@ module "tmdb_bigquery_dataset" {
     storage_billing_model           = "PHYSICAL"
   }
   tables = {
+    tmdb_trigger = {
+      friendly_name       = "TMDB Trigger"
+      schema              = file("./src/bigquery-schema/tmdb_trigger.json")
+      deletion_protection = false
+      options = {
+        clustering = ["type"]
+      }
+    },
     tmdb_data = {
       friendly_name       = "TMDB Data"
-      schema              = file("./src/bigquery-schema/tmdb-data-schema.json")
+      schema              = file("./src/bigquery-schema/tmdb_data.json")
       deletion_protection = false
       options = {
         clustering = ["type", "response_type"]
@@ -192,7 +200,33 @@ module "tmdb_bigquery_dataset" {
 #--------------------------------------------------------------------------------------------------
 # Pub/Sub Topics and Schemas
 #--------------------------------------------------------------------------------------------------
-module "tmdb_data_topic" {
+module "tmdb_trigger_pubsub_topic" {
+  # TODO: Requires the Fabric FAST module to be updated to allow the service account email to be set for the BigQuery subscription
+  source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/pubsub?ref=v35.0.0&depth=1"
+  project_id = module.project_services.project_id
+  name       = var.tmdb_trigger_topic
+
+  message_retention_duration = "604800s" # (7 days)
+  schema = {
+    msg_encoding = "JSON"
+    schema_type  = "AVRO"
+    definition   = file("./src/backfill-tmdb/build/tmdb-trigger-topic-schema.json")
+  }
+  subscriptions = {
+    tmdb-trigger = {
+      bigquery = {
+        table                 = "${module.tmdb_bigquery_dataset.tables["tmdb_trigger"].project}:${module.tmdb_bigquery_dataset.tables["tmdb_trigger"].dataset_id}.${module.tmdb_bigquery_dataset.tables["tmdb_trigger"].table_id}"
+        use_table_schema      = true
+        write_metadata        = false
+        service_account_email = module.pubsub_service_account.email
+      }
+    }
+  }
+
+  depends_on = [module.tmdb_bigquery_dataset, module.pubsub_service_account]
+}
+
+module "tmdb_data_pubsub_topic" {
   # TODO: Requires the Fabric FAST module to be updated to allow the service account email to be set for the BigQuery subscription
   source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/pubsub?ref=v35.0.0&depth=1"
   project_id = module.project_services.project_id
@@ -370,5 +404,5 @@ module "deploy_get_tmdb_data" {
   deletion_protection = false
   service_account     = module.cloudrun_service_account.email
 
-  depends_on = [module.build_get_tmdb_data.wait, module.cloudrun_service_account, module.vaism_tmdb_secret_manager, module.tmdb_data_topic]
+  depends_on = [module.build_get_tmdb_data.wait, module.cloudrun_service_account, module.vaism_tmdb_secret_manager, module.tmdb_data_pubsub_topic]
 }

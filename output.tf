@@ -47,7 +47,12 @@ output "vaism_tmdb_artifact_registry_url" {
   description = "Output Artifact Registry Repository URL"
 }
 
-output "tmdb_data_topic_id" {
-  value       = module.tmdb_data_topic.id
-  description = "Output TMDB Data Topic ID"
+output "tmdb_trigger_pubsub_topic_id" {
+  value       = module.tmdb_trigger_pubsub_topic.id
+  description = "Output TMDB Trigger Pub/Sub Topic ID"
+}
+
+output "tmdb_data_pubsub_topic_id" {
+  value       = module.tmdb_data_pubsub_topic.id
+  description = "Output TMDB Data Pub/Sub Topic ID"
 }
