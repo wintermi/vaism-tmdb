@@ -15,18 +15,23 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"context"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"cloud.google.com/go/pubsub"
 	"github.com/carlmjohnson/requests"
+	"github.com/linkedin/goavro"
 )
 
 // Cloud Run Job Configuration
@@ -39,7 +44,7 @@ type JobConfig struct {
 	PubSubTopicID   string
 	APIKey          string
 	OutputPath      string
-	DailyExports    []string
+	ExportTypes     []string
 }
 
 //go:embed tmdb-trigger-topic-schema.json
@@ -47,7 +52,7 @@ var TMDB_TRIGGER_TOPIC_SCHEMA string
 
 //---------------------------------------------------------------------------------------
 
-// Main Job Logic
+// Main Cloud Run Job Logic
 func main() {
 
 	config := NewJobConfig()
@@ -58,8 +63,8 @@ func main() {
 		log.Fatalf("Create Output Path Failed: %v", err)
 	}
 
-	if err := config.GetDailyExports(); err != nil {
-		log.Fatalf("Get Daily ID Exports Failed: %v", err)
+	if err := config.BackfillAvailableData(); err != nil {
+		log.Fatalf("Backfill Available TMDB Data Failed: %v", err)
 	}
 
 	log.Printf("Completed Task #%s, Attempt #%s", config.TaskNum, config.AttemptNum)
@@ -68,7 +73,7 @@ func main() {
 //---------------------------------------------------------------------------------------
 
 // Calculate the Export Date to use, allowing for it to be overridden
-func getExportDate(exportDate string) time.Time {
+func GetExportDate(exportDate string) time.Time {
 
 	// If "Export Date" is populated attempt to parse the date. If unable to parse
 	// resort to using the UTC current date logic
@@ -99,19 +104,19 @@ func NewJobConfig() JobConfig {
 		TaskNum:         os.Getenv("CLOUD_RUN_TASK_INDEX"),
 		AttemptNum:      os.Getenv("CLOUD_RUN_TASK_ATTEMPT"),
 		BucketMountPath: os.Getenv("BUCKET_MOUNT_PATH"),
-		ExportDate:      getExportDate(os.Getenv("EXPORT_DATE")),
+		ExportDate:      GetExportDate(os.Getenv("EXPORT_DATE")),
 		PubSubProjectID: os.Getenv("PUBSUB_PROJECT_ID"),
 		PubSubTopicID:   os.Getenv("PUBSUB_TOPIC_ID"),
 		APIKey:          os.Getenv("API_KEY"),
 		OutputPath:      "",
-		DailyExports: []string{
-			"movie_ids",
-			"tv_series_ids",
-			"person_ids",
-			"collection_ids",
-			"tv_network_ids",
-			"keyword_ids",
-			"production_company_ids",
+		ExportTypes: []string{
+			"movie",
+			"tv_series",
+			"person",
+			"collection",
+			"tv_network",
+			"keyword",
+			"production_company",
 		},
 	}
 
@@ -141,21 +146,36 @@ func (config *JobConfig) CreateOutputPath() error {
 
 //---------------------------------------------------------------------------------------
 
-// Get The Movie DB Daily ID Exports
-func (config *JobConfig) GetDailyExports() error {
+// Backfill the Available TMDB Data for the given Export Date
+func (config *JobConfig) BackfillAvailableData() error {
 
-	log.Print("Initiating Request to Get Daily ID Exports")
+	log.Print("Initiating the Backfill of Available TMDB Data")
 
-	// Iterate through All of the Entries
-	for _, dailyExport := range config.DailyExports {
+	// Setup the PubSub Client and Topic ready to publish messages to the given topic
+	ctx := context.Background()
+	psClient, err := pubsub.NewClient(ctx, config.PubSubProjectID)
+	if err != nil {
+		return fmt.Errorf("Create Pub/Sub Client Failed: %w", err)
+	}
+	defer psClient.Close()
+	psTopic := psClient.Topic(config.PubSubTopicID)
 
-		log.Printf("Exporting: %s", dailyExport)
+	// Setup the AVRO Codec for the creation of the Pub/Sub Messages
+	codec, err := goavro.NewCodec(TMDB_TRIGGER_TOPIC_SCHEMA)
+	if err != nil {
+		return fmt.Errorf("Failed to Create AVRO Codec: %w", err)
+	}
+
+	// Iterate through All of the Export Types
+	for _, exportType := range config.ExportTypes {
+
+		log.Printf("Exporting: %s", exportType)
 
 		// Make the Export API Request
 		var response bytes.Buffer
 		err := requests.
 			URL("http://files.tmdb.org").
-			Pathf("/p/exports/%s.gz", fmt.Sprintf("%s_%s.json", dailyExport, config.ExportDate.Format("01_02_2006"))).
+			Pathf("/p/exports/%s.gz", fmt.Sprintf("%s_ids_%s.json", exportType, config.ExportDate.Format("01_02_2006"))).
 			Bearer(config.APIKey).
 			ToBytesBuffer(&response).
 			Fetch(context.Background())
@@ -174,14 +194,61 @@ func (config *JobConfig) GetDailyExports() error {
 			return fmt.Errorf("Reading Response Body Failed: %w", err)
 		}
 
-		exportFile, _ := filepath.Abs(filepath.Join(config.OutputPath, fmt.Sprintf("%s.json", dailyExport)))
+		exportFile, _ := filepath.Abs(filepath.Join(config.OutputPath, fmt.Sprintf("%s.json", exportType)))
 		err = os.WriteFile(exportFile, data, 0600)
 		if err != nil {
 			return fmt.Errorf("Writing Response to File Failed: %w", err)
 		}
+
+		// Reset counters
+		messageCount := 0
+		failureCount := 0
+
+		// Iterate through the backfilled data and publish to Pub/Sub
+		var psResults []*pubsub.PublishResult
+		scanner := bufio.NewScanner(strings.NewReader(string(data)))
+		for scanner.Scan() {
+
+			// Unmarshal the JSON into a Map
+			var row map[string]interface{}
+			err = json.Unmarshal(scanner.Bytes(), &row)
+			if err != nil {
+				failureCount++
+				continue
+			}
+
+			// Create the Datum Record
+			var datumRecord map[string]interface{} = make(map[string]interface{})
+			datumRecord["id"] = row["id"]
+			datumRecord["type"] = exportType
+			datumRecord["export_date"] = config.ExportDate.Format("2006-01-02")
+
+			// Convert Datum Record using AVRO Schema to AVRO JSON format
+			msg, err := codec.TextualFromNative(nil, datumRecord)
+			if err != nil {
+				return fmt.Errorf("Failed to create AVRO JSON message: %w", err)
+			}
+
+			// Publish the messages and store the results for later processing
+			psResults = append(psResults, psTopic.Publish(ctx, &pubsub.Message{Data: msg}))
+
+			messageCount++
+		}
+
+		// Check the Publish Results and count and report any failures
+		for _, result := range psResults {
+			_, err = result.Get(ctx)
+			if err != nil {
+				failureCount++
+			}
+		}
+
+		log.Printf("Export Type: %s", exportType)
+		log.Printf("....Number of Message(s) Published: %d", messageCount)
+		log.Printf("....Number of Message(s) Failed to Publish: %d", failureCount)
 	}
 
-	log.Print("Completed the Daily ID Exports")
+	log.Print("Completed the Backfill of Available TMDB Data")
 
 	return nil
 }
