@@ -35,6 +35,7 @@ module "project_services" {
     "bigquery.googleapis.com",
     "bigquerystorage.googleapis.com",
     "cloudbuild.googleapis.com",
+    "discoveryengine.googleapis.com",
     "pubsub.googleapis.com",
     "run.googleapis.com",
     "secretmanager.googleapis.com",
@@ -88,6 +89,7 @@ module "pubsub_service_account" {
     "${module.project_services.project_id}" = [
       "roles/bigquery.dataEditor",
       "roles/pubsub.editor",
+      "roles/run.invoker",
     ]
   }
 }
@@ -221,9 +223,17 @@ module "tmdb_trigger_pubsub_topic" {
         service_account_email = module.pubsub_service_account.email
       }
     }
+    get-tmdb-data = {
+      push = {
+        endpoint = "${module.deploy_get_tmdb_data.service_uri}/api/v1/export"
+        oidc_token = {
+          service_account_email = module.pubsub_service_account.email
+        }
+      }
+    }
   }
 
-  depends_on = [module.tmdb_bigquery_dataset, module.pubsub_service_account]
+  depends_on = [module.tmdb_bigquery_dataset, module.pubsub_service_account, module.deploy_get_tmdb_data]
 }
 
 module "tmdb_data_pubsub_topic" {
