@@ -230,6 +230,15 @@ module "tmdb_trigger_pubsub_topic" {
           service_account_email = module.pubsub_service_account.email
         }
       }
+      message_retention_duration = "604800s" # (7 days)
+      retain_acked_messages      = false
+      expiration_policy_ttl      = "" # (Never Expires)
+      ack_deadline_seconds       = 600
+      enable_message_ordering    = true
+      retry_policy = {
+        maximum_backoff = "600s"
+        minimum_backoff = "10s"
+      }
     }
   }
 
