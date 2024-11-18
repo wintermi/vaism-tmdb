@@ -47,7 +47,7 @@ module "project_services" {
 # Service Accounts
 #--------------------------------------------------------------------------------------------------
 module "cloudbuild_service_account" {
-  source       = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/iam-service-account?ref=v35.0.0&depth=1"
+  source       = "./fabric/modules/iam-service-account"
   project_id   = module.project_services.project_id
   name         = "sa-cloudbuild-${var.deployment_name}"
   display_name = "Service Account for Cloud Build"
@@ -63,7 +63,7 @@ module "cloudbuild_service_account" {
 }
 
 module "cloudrun_service_account" {
-  source       = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/iam-service-account?ref=v35.0.0&depth=1"
+  source       = "./fabric/modules/iam-service-account"
   project_id   = module.project_services.project_id
   name         = "sa-cloudrun-${var.deployment_name}"
   display_name = "Service Account for Cloud Run"
@@ -79,7 +79,7 @@ module "cloudrun_service_account" {
 }
 
 module "pubsub_service_account" {
-  source       = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/iam-service-account?ref=v35.0.0&depth=1"
+  source       = "./fabric/modules/iam-service-account"
   project_id   = module.project_services.project_id
   name         = "sa-pubsub-${var.deployment_name}"
   display_name = "Service Account for Pub/Sub"
@@ -98,7 +98,7 @@ module "pubsub_service_account" {
 # Artifact Registry
 #--------------------------------------------------------------------------------------------------
 module "vaism_tmdb_artifact_registry" {
-  source      = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/artifact-registry?ref=v35.0.0&depth=1"
+  source      = "./fabric/modules/artifact-registry"
   project_id  = module.project_services.project_id
   location    = var.region
   name        = var.vaism_tmdb_repository_id
@@ -110,7 +110,7 @@ module "vaism_tmdb_artifact_registry" {
 # Secret Manager
 #--------------------------------------------------------------------------------------------------
 module "vaism_tmdb_secret_manager" {
-  source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/secret-manager?ref=v35.0.0&depth=1"
+  source     = "./fabric/modules/secret-manager"
   project_id = module.project_services.project_id
   secrets = {
     TMDB_API_TOKEN = {}
@@ -126,7 +126,7 @@ module "vaism_tmdb_secret_manager" {
 # Cloud Storage Buckets
 #--------------------------------------------------------------------------------------------------
 module "cloudbuild_backfill_tmdb_bucket" {
-  source        = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/gcs?ref=v35.0.0&depth=1"
+  source        = "./fabric/modules/gcs"
   project_id    = module.project_services.project_id
   location      = var.region
   prefix        = var.deployment_name
@@ -139,7 +139,7 @@ module "cloudbuild_backfill_tmdb_bucket" {
 }
 
 module "cloudbuild_get_tmdb_data_bucket" {
-  source        = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/gcs?ref=v35.0.0&depth=1"
+  source        = "./fabric/modules/gcs"
   project_id    = module.project_services.project_id
   location      = var.region
   prefix        = var.deployment_name
@@ -152,7 +152,7 @@ module "cloudbuild_get_tmdb_data_bucket" {
 }
 
 module "backfill_bucket" {
-  source        = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/gcs?ref=v35.0.0&depth=1"
+  source        = "./fabric/modules/gcs"
   project_id    = module.project_services.project_id
   location      = var.region
   prefix        = var.deployment_name
@@ -168,7 +168,7 @@ module "backfill_bucket" {
 # BigQuery Dataset
 #--------------------------------------------------------------------------------------------------
 module "tmdb_bigquery_dataset" {
-  source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/bigquery-dataset?ref=v35.0.0&depth=1"
+  source     = "./fabric/modules/bigquery-dataset"
   project_id = module.project_services.project_id
   location   = var.region
   id         = "tmdb"
@@ -203,8 +203,7 @@ module "tmdb_bigquery_dataset" {
 # Pub/Sub Topics and Schemas
 #--------------------------------------------------------------------------------------------------
 module "tmdb_trigger_pubsub_topic" {
-  # TODO: Requires the Fabric FAST module to be updated to allow the service account email to be set for the BigQuery subscription
-  source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/pubsub?ref=v35.0.0&depth=1"
+  source     = "./fabric/modules/pubsub"
   project_id = module.project_services.project_id
   name       = var.tmdb_trigger_topic_name
 
@@ -236,8 +235,8 @@ module "tmdb_trigger_pubsub_topic" {
       ack_deadline_seconds       = 600
       enable_message_ordering    = true
       retry_policy = {
-        maximum_backoff = "600s"
-        minimum_backoff = "10s"
+        maximum_backoff = 600
+        minimum_backoff = 10
       }
     }
   }
@@ -246,8 +245,7 @@ module "tmdb_trigger_pubsub_topic" {
 }
 
 module "tmdb_data_pubsub_topic" {
-  # TODO: Requires the Fabric FAST module to be updated to allow the service account email to be set for the BigQuery subscription
-  source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/pubsub?ref=v35.0.0&depth=1"
+  source     = "./fabric/modules/pubsub"
   project_id = module.project_services.project_id
   name       = var.tmdb_data_topic_name
 
@@ -325,8 +323,7 @@ module "build_get_tmdb_data" {
 # Deploy Cloud Run Job - Backfill TMDB History
 #--------------------------------------------------------------------------------------------------
 module "deploy_backfill_tmdb" {
-  # TODO: Update to use the v36.0.0 release tag assuming it contains the PR submitted to fix the GCS attribute issue
-  source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/cloud-run-v2?depth=1"
+  source     = "./fabric/modules/cloud-run-v2"
   project_id = module.project_services.project_id
   region     = var.region
   name       = "backfill-tmdb"
@@ -383,8 +380,7 @@ module "deploy_backfill_tmdb" {
 # Deploy Cloud Run Service - Get TMDB Data
 #--------------------------------------------------------------------------------------------------
 module "deploy_get_tmdb_data" {
-  # TODO: Update to use the v36.0.0 release tag assuming it contains the PR submitted to fix the GCS attribute issue
-  source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/cloud-run-v2?depth=1"
+  source     = "./fabric/modules/cloud-run-v2"
   project_id = module.project_services.project_id
   region     = var.region
   name       = "get-tmdb-data"
