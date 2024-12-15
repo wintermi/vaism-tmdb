@@ -20,15 +20,16 @@ provider "google-beta" {
   project = var.project_id
 }
 
-module "project_services" {
-  source      = "terraform-google-modules/project-factory/google//modules/project_services"
-  version     = "~> 17.0"
-  project_id  = var.project_id
-  enable_apis = var.enable_apis
 
-  disable_services_on_destroy = false
+#--------------------------------------------------------------------------------------------------
+# Enable Project Services and any IAM roles
+#--------------------------------------------------------------------------------------------------
+module "build_project" {
+  source         = "./fabric/modules/project"
+  name           = var.project_id
+  project_create = false
 
-  activate_apis = [
+  services = [
     "serviceusage.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "artifactregistry.googleapis.com",
@@ -48,13 +49,13 @@ module "project_services" {
 #--------------------------------------------------------------------------------------------------
 module "cloudbuild_service_account" {
   source       = "./fabric/modules/iam-service-account"
-  project_id   = module.project_services.project_id
+  project_id   = module.build_project.project_id
   name         = "sa-cloudbuild-${var.deployment_name}"
   display_name = "Service Account for Cloud Build"
 
   # non-authoritative roles granted *to* the service accounts on other resources
   iam_project_roles = {
-    "${module.project_services.project_id}" = [
+    "${module.build_project.project_id}" = [
       "roles/storage.admin",
       "roles/artifactregistry.writer",
       "roles/logging.logWriter",
@@ -64,13 +65,13 @@ module "cloudbuild_service_account" {
 
 module "cloudrun_service_account" {
   source       = "./fabric/modules/iam-service-account"
-  project_id   = module.project_services.project_id
+  project_id   = module.build_project.project_id
   name         = "sa-cloudrun-${var.deployment_name}"
   display_name = "Service Account for Cloud Run"
 
   # non-authoritative roles granted *to* the service accounts on other resources
   iam_project_roles = {
-    "${module.project_services.project_id}" = [
+    "${module.build_project.project_id}" = [
       "roles/secretmanager.secretAccessor",
       "roles/storage.objectUser",
       "roles/pubsub.publisher",
@@ -80,13 +81,13 @@ module "cloudrun_service_account" {
 
 module "pubsub_service_account" {
   source       = "./fabric/modules/iam-service-account"
-  project_id   = module.project_services.project_id
+  project_id   = module.build_project.project_id
   name         = "sa-pubsub-${var.deployment_name}"
   display_name = "Service Account for Pub/Sub"
 
   # non-authoritative roles granted *to* the service accounts on other resources
   iam_project_roles = {
-    "${module.project_services.project_id}" = [
+    "${module.build_project.project_id}" = [
       "roles/bigquery.dataEditor",
       "roles/pubsub.editor",
       "roles/run.invoker",
@@ -99,7 +100,7 @@ module "pubsub_service_account" {
 #--------------------------------------------------------------------------------------------------
 module "vaism_tmdb_artifact_registry" {
   source      = "./fabric/modules/artifact-registry"
-  project_id  = module.project_services.project_id
+  project_id  = module.build_project.project_id
   location    = var.region
   name        = var.vaism_tmdb_repository_id
   description = "VAIS:M TMDB Artifact Registry Repository"
@@ -111,7 +112,7 @@ module "vaism_tmdb_artifact_registry" {
 #--------------------------------------------------------------------------------------------------
 module "vaism_tmdb_secret_manager" {
   source     = "./fabric/modules/secret-manager"
-  project_id = module.project_services.project_id
+  project_id = module.build_project.project_id
   secrets = {
     TMDB_API_TOKEN = {}
   }
@@ -127,7 +128,7 @@ module "vaism_tmdb_secret_manager" {
 #--------------------------------------------------------------------------------------------------
 module "cloudbuild_backfill_tmdb_bucket" {
   source        = "./fabric/modules/gcs"
-  project_id    = module.project_services.project_id
+  project_id    = module.build_project.project_id
   location      = var.region
   prefix        = var.deployment_name
   name          = "cloudbuild-backfill-tmdb"
@@ -140,7 +141,7 @@ module "cloudbuild_backfill_tmdb_bucket" {
 
 module "cloudbuild_get_tmdb_data_bucket" {
   source        = "./fabric/modules/gcs"
-  project_id    = module.project_services.project_id
+  project_id    = module.build_project.project_id
   location      = var.region
   prefix        = var.deployment_name
   name          = "cloudbuild-get-tmdb-data"
@@ -153,7 +154,7 @@ module "cloudbuild_get_tmdb_data_bucket" {
 
 module "backfill_bucket" {
   source        = "./fabric/modules/gcs"
-  project_id    = module.project_services.project_id
+  project_id    = module.build_project.project_id
   location      = var.region
   prefix        = var.deployment_name
   name          = "backfill"
@@ -169,7 +170,7 @@ module "backfill_bucket" {
 #--------------------------------------------------------------------------------------------------
 module "tmdb_bigquery_dataset" {
   source     = "./fabric/modules/bigquery-dataset"
-  project_id = module.project_services.project_id
+  project_id = module.build_project.project_id
   location   = var.region
   id         = "tmdb"
   options = {
@@ -204,7 +205,7 @@ module "tmdb_bigquery_dataset" {
 #--------------------------------------------------------------------------------------------------
 module "tmdb_trigger_pubsub_topic" {
   source     = "./fabric/modules/pubsub"
-  project_id = module.project_services.project_id
+  project_id = module.build_project.project_id
   name       = var.tmdb_trigger_topic_name
 
   message_retention_duration = "604800s" # (7 days)
@@ -246,7 +247,7 @@ module "tmdb_trigger_pubsub_topic" {
 
 module "tmdb_data_pubsub_topic" {
   source     = "./fabric/modules/pubsub"
-  project_id = module.project_services.project_id
+  project_id = module.build_project.project_id
   name       = var.tmdb_data_topic_name
 
   message_retention_duration = "604800s" # (7 days)
@@ -284,7 +285,7 @@ module "build_backfill_tmdb" {
       "builds submit ./src/backfill-tmdb",
       "--tag '${module.vaism_tmdb_artifact_registry.url}/backfill-tmdb'",
       "--region '${var.region}'",
-      "--project '${module.project_services.project_id}'",
+      "--project '${module.build_project.project_id}'",
       "--service-account '${module.cloudbuild_service_account.id}'",
       "--gcs-log-dir '${module.cloudbuild_backfill_tmdb_bucket.url}/logs'",
       "--gcs-source-staging-dir '${module.cloudbuild_backfill_tmdb_bucket.url}/source'",
@@ -309,7 +310,7 @@ module "build_get_tmdb_data" {
       "builds submit ./src/get-tmdb-data",
       "--tag '${module.vaism_tmdb_artifact_registry.url}/get-tmdb-data'",
       "--region '${var.region}'",
-      "--project '${module.project_services.project_id}'",
+      "--project '${module.build_project.project_id}'",
       "--service-account '${module.cloudbuild_service_account.id}'",
       "--gcs-log-dir '${module.cloudbuild_get_tmdb_data_bucket.url}/logs'",
       "--gcs-source-staging-dir '${module.cloudbuild_get_tmdb_data_bucket.url}/source'",
@@ -324,7 +325,7 @@ module "build_get_tmdb_data" {
 #--------------------------------------------------------------------------------------------------
 module "deploy_backfill_tmdb" {
   source     = "./fabric/modules/cloud-run-v2"
-  project_id = module.project_services.project_id
+  project_id = module.build_project.project_id
   region     = var.region
   name       = "backfill-tmdb"
   create_job = true
@@ -341,7 +342,7 @@ module "deploy_backfill_tmdb" {
       env = {
         BUCKET_MOUNT_PATH = "/mnt/bucket/backfill-tmdb"
         EXPORT_DATE       = ""
-        PUBSUB_PROJECT_ID = module.project_services.project_id
+        PUBSUB_PROJECT_ID = module.build_project.project_id
         PUBSUB_TOPIC_ID   = var.tmdb_trigger_topic_name
       }
       env_from_key = {
@@ -381,7 +382,7 @@ module "deploy_backfill_tmdb" {
 #--------------------------------------------------------------------------------------------------
 module "deploy_get_tmdb_data" {
   source     = "./fabric/modules/cloud-run-v2"
-  project_id = module.project_services.project_id
+  project_id = module.build_project.project_id
   region     = var.region
   name       = "get-tmdb-data"
 
@@ -401,7 +402,7 @@ module "deploy_get_tmdb_data" {
         startup_cpu_boost = true
       }
       env = {
-        PUBSUB_PROJECT_ID = module.project_services.project_id
+        PUBSUB_PROJECT_ID = module.build_project.project_id
         PUBSUB_TOPIC_ID   = var.tmdb_data_topic_name
       }
       env_from_key = {
